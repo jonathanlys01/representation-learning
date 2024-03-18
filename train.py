@@ -1,6 +1,6 @@
 import torch
 from tqdm import tqdm
-from model import VariationalAutoEncoder, AutoEncoder, ConvAutoencoder
+from model import CondVariationalAutoEncoder, AutoEncoder, ConvAutoencoder
 from dataset import get_mnist
 import os
 from utils import get_device, KL_divergence
@@ -100,11 +100,12 @@ def train_convae(name, n_epochs, save=True, noise=True):
     plt.savefig(f"results/{name}/loss.png")
     plt.close()
 
-def train_vae(name, n_epochs):
-    model = VariationalAutoEncoder(28*28, 196, 64) 
+def train_vae(name, n_epochs, final_lambda_kl=0.5):
+    model = CondVariationalAutoEncoder(data_size=28*28, layer_size=196, hidden_size=64, num_classes=10)
     # 28*28 is the size of the MNIST images, 
     # 196 is the size of the intermediate layer
     # 64 is the size of the hidden layer (latent space)
+    # 10 is the number of classes in the dataset (0-9)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     criterion = torch.nn.BCELoss()
@@ -114,10 +115,11 @@ def train_vae(name, n_epochs):
     device = get_device()
     
     model.to(device)
-    
-    
+
     
     pbar = tqdm(range(n_epochs))
+    
+    losses = np.zeros(n_epochs)
     
     for epoch in pbar:
         
@@ -129,11 +131,15 @@ def train_vae(name, n_epochs):
         for x, labels in dataset:
             
             x = x.view(-1, 28*28).to(device)
+            labels = labels.to(device)
+            
             optimizer.zero_grad()
-            output, mu, logvar = model(x)
-            loss = criterion(output, x) + KL_divergence(mu, logvar)
+            output, mu, logvar = model(x, labels)
+            loss = criterion(output, x) + (epoch/n_epochs) * final_lambda_kl * KL_divergence(mu, logvar)
             loss.backward()
             optimizer.step()
+            
+            losses[epoch] += loss.item()
             
             
             for i in range(10):
@@ -160,6 +166,11 @@ def train_vae(name, n_epochs):
     torch.save(model.state_dict(), f"results/{name}/model.pth")
     
     print("Training complete")
+    
+    plt.plot(losses)
+    plt.title("Loss")
+    plt.savefig(f"results/{name}/loss.png")
+    plt.close()
     
 if __name__ == '__main__':
     

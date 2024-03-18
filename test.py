@@ -1,11 +1,13 @@
 from dataset import get_mnist
-import os
-from model import AutoEncoder, ConvAutoencoder, VariationalAutoEncoder
+from model import AutoEncoder, ConvAutoencoder, CondVariationalAutoEncoder, VariationalAutoEncoder
 import torch
 from utils import get_device
 import matplotlib.pyplot as plt
-
 import argparse
+import random
+import numpy as np
+from tqdm import tqdm
+from viz import visualize
 
 def test_auto_encoder(type="ae", name="ae"):
     
@@ -52,38 +54,75 @@ def test_auto_encoder(type="ae", name="ae"):
             plt.title("Reconstructed")
             
             plt.savefig(f"results/{name}/reconstructed_{i}.png")
+            plt.close()
             
         
-def test_variational_auto_encoder(name="vae"):
+def test_variational_auto_encoder(type="cond",name="vae"):
     
     device = get_device()
-    model = VariationalAutoEncoder(28*28, 196, 64).to(device)
+    
+    if type == "vae":
+        model = VariationalAutoEncoder(data_size=28*28, layer_size=196, hidden_size=64)
+    elif type == "cond":
+        model = CondVariationalAutoEncoder(data_size=28*28, layer_size=196, hidden_size=64, num_classes=10)
+    
     model.load_state_dict(torch.load(f'results/{name}/model.pth'))
     
-    
+    model.to(device)
+    model.eval()
     
     params = torch.load(f'results/{name}/params.pth')
     mu = params["mu"].to(device)
-    #logvar = params["logvar"]
+    logvar = params["logvar"]
     
-    with torch.no_grad():
-        for i in range(10):
-            output = model.decoder(mu[i]).cpu().numpy().reshape(28, 28)
+    if type == "cond":
+        with torch.inference_mode():
+            for i in range(5):  
+                number = random.randint(0, 9) # random number between 0 and 9
+                
+                mu_c = mu[number].view(1, -1).to(device)
+                logvar_c = logvar[number].view(1, -1).to(device)
+                c = torch.tensor(number).unsqueeze(0).to(device)
+                
+                z = mu_c + torch.exp(0.5*logvar_c) * torch.randn_like(mu_c)
+                
+                output = model.generate(z, c).cpu().numpy().reshape(28, 28)
+                
+                plt.figure()
+                plt.imshow(output, cmap='coolwarm')
+                plt.title(f"Generated {number}")
+                plt.savefig(f"results/{name}/generated_{i}.png")
+                plt.close()
+    
+      
+    mnist = get_mnist(loader=False) # dataset without loader
+    embeddings = torch.zeros(len(mnist), 64).to(device)
+    labels = np.zeros(len(mnist))
+    
+    with torch.inference_mode():
+        for i, (x, label) in tqdm(enumerate(mnist), total=len(mnist)):
+            x = x.view(-1, 28*28).to(device)
+            mu, _ = model.encode(x)
+            embeddings[i] = mu.detach().cpu()
+            labels[i] = label
             
-            plt.figure()
-            plt.imshow(output, cmap='coolwarm')
-            plt.title(f"Reconstructed {i}")
-            plt.savefig(f"results/{name}/reconstructed_{i}.png")
+    
+    embeddings = embeddings.cpu().numpy()
+    
+    visualize(embeddings, labels, f"results/{name}/embeddings.png", mode="pca")
+            
+    
+            
     
 if __name__ == '__main__':
     
-    # python3 test.py -t ae -n ae_noisy
-    # python3 test.py -t ae -n ae
+    # python3 test.py -m ae -n ae_noisy
+    # python3 test.py -m ae -n ae
     
-    # python3 test.py -t conv -n conv_noisy
-    # python3 test.py -t conv -n conv
+    # python3 test.py -m conv -n conv_noisy
+    # python3 test.py -m conv -n conv
     
-    # python3 test.py -t vae -n vae
+    # python3 test.py -m vae -n vae
     
     
     parser = argparse.ArgumentParser()
