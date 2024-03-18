@@ -17,7 +17,7 @@ def get_mnist(batch_size=32, shuffle=True, loader=True):
         dataset=dataset,
         batch_size=batch_size,
         shuffle=shuffle,
-        #num_workers=2
+        num_workers=2
     )
     return dataloader
     
