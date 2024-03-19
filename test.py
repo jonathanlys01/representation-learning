@@ -1,5 +1,5 @@
-from dataset import get_mnist, get_cifar
-from model import AutoEncoder, ConvAutoencoder, CondVariationalAutoEncoder, VariationalAutoEncoder
+from dataset import get_mnist, get_cifar, classes_cifar, classes_mnist
+from model import AutoEncoder, ConvAutoencoder, VariationalAutoEncoder
 import torch
 from utils import get_device
 import matplotlib.pyplot as plt
@@ -8,6 +8,7 @@ import random
 import numpy as np
 from tqdm import tqdm
 from viz import visualize
+
 
 def test_auto_encoder(name, type, dataset_name="mnist", noise=False, num_samples=5):
         
@@ -47,7 +48,45 @@ def test_auto_encoder(name, type, dataset_name="mnist", noise=False, num_samples
                 
                 plt.savefig(f"results/{name}/img_{i}.png")
                 plt.close()
+
+def test_vae(name, dataset_name):
+    num_channels = 1 if dataset_name == "mnist" else 3
+    img_side = 28 if dataset_name == "mnist" else 32
+    
+    classes = classes_mnist if dataset_name == "mnist" else classes_cifar
+    
+    model = VariationalAutoEncoder(num_channels, img_side)
+    
+    model.load_state_dict(torch.load(f"results/{name}/model.pth", map_location=torch.device('cpu')))
+    model.eval()
+    
+    params = torch.load(f"results/{name}/params.pth", map_location=torch.device("cpu"))
+    
+    device = get_device()
+    
+    mus = params["mus"].to(device)
+    logvars = params["logvars"].to(device)
+    
+    
+    
+    model.to(device)
+    
+    with torch.inference_mode():
+        for i in range(10): # num classes
+            mu = mus[i].unsqueeze(0)
+            logvar = logvars[i].unsqueeze(0)
+            
+            std = torch.exp(0.5 * logvar)
+            eps = torch.randn_like(std)
+            
+            z = mu + eps * std
         
+            output = model.decode(z).squeeze(0)
+            
+            plt.imshow(output.permute(1, 2, 0).detach().cpu().numpy())
+            plt.title(f"Perturbed prototype for class: {classes[i]}")
+            plt.savefig(f"results/{name}/prototype_{i}.png")
+            plt.close()
         
     
 if __name__ == '__main__':
@@ -65,10 +104,12 @@ if __name__ == '__main__':
     
     parser.add_argument("--name", "-n", type=str, default="ae", help="Name of the model to test")
     parser.add_argument("--model", "-m", type=str, default="ae", help="Type of model to test", choices=["ae", "conv", "vae"])
-    parser.add_argument("--dataset", "-d", type=str, default="mnist", help="Dataset to use", choices=["mnist", "cifar"])
+    parser.add_argument("--dataset", "-d", type=str, default="cifar", help="Dataset to use", choices=["mnist", "cifar"])
     parser.add_argument("--num_samples", "-ns", type=int, default=5, help="Number of samples to visualize")
     
     args = parser.parse_args()
+    
+    print("DS:", args.dataset)
     
     if args.model in ["ae", "conv"]:
         test_auto_encoder(
@@ -79,5 +120,9 @@ if __name__ == '__main__':
             num_samples=args.num_samples    
         )
     elif args.model == "vae":
-        raise NotImplementedError("VAE not implemented yet")
+        test_vae(
+            name=args.name,
+            dataset_name=args.dataset
+        )
+    print("Testing complete")
     
