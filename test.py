@@ -32,7 +32,7 @@ def test_auto_encoder(name, type, dataset_name="mnist", noise=False, num_samples
             
                 x, _ = dataset[idx]
                 
-                x = x.to(device)
+                x = x.unsqueeze(0).to(device)
                 
                 if noise:
                     x += 0.1 * x.std() * torch.randn_like(x).to(device)
@@ -40,7 +40,7 @@ def test_auto_encoder(name, type, dataset_name="mnist", noise=False, num_samples
                 output = model(x).squeeze(0)
                 
                 plt.subplot(1, 2, 1)
-                plt.imshow(x.permute(1, 2, 0).cpu().numpy())
+                plt.imshow(x.squeeze(0).permute(1, 2, 0).cpu().numpy())
                 
                 plt.subplot(1, 2, 2)
                 plt.imshow(output.permute(1, 2, 0).detach().cpu().numpy())
