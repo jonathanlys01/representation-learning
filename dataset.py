@@ -4,6 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 
 import os 
+import numpy as np
 
 # MNIST dataset
 
@@ -42,11 +43,15 @@ def get_cifar(batch_size=32, shuffle=True, loader=True):
         num_workers= 2 if os.cpu_count() > 2 else 1
     )
     return dataloader
-    
+
+classes_cifar = ("airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
     
 if __name__ == '__main__':
     dataset = get_cifar(loader=False)
-    img, label = dataset[1]
+    print(len(dataset))
+    idx = np.random.randint(0, len(dataset))
+    img, label = dataset[idx]
     img = img.permute(1, 2, 0)
     plt.imshow(img.numpy())
+    plt.title(f"Label: {label}, (idx: {idx})")
     plt.show()

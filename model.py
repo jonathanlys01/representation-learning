@@ -84,146 +84,75 @@ class ConvAutoencoder(nn.Module):
         x = self.decoder(x)
                 
         return x
-
-class CondVariationalAutoEncoder(nn.Module):
-    def __init__(
-        self,
-        num_classes: int,
-        
-        num_channels: int,
-        img_side: int,
-        
-        layer_size: int,
-        hidden_size: int,
-        
-    ):
-        super(CondVariationalAutoEncoder, self).__init__()
-        
-        self.num_channels = num_channels
-        self.img_side = img_side
-        self.data_size = num_channels * img_side * img_side
-        
-        
-        self.encoder = nn.Sequential(
-            nn.Linear(self.data_size, layer_size),
-            nn.ReLU(),
-            nn.BatchNorm1d(layer_size),
-        )
-        
-        self.mu = nn.Linear(layer_size, hidden_size)
-        self.logvar = nn.Linear(layer_size, hidden_size)
-        
-        self.conditional = nn.Embedding(num_classes, hidden_size)    
-        
-        self.decoder = nn.Sequential(
-            nn.Linear(2*hidden_size, layer_size),
-            nn.ReLU(),
-            nn.BatchNorm1d(layer_size),
-            nn.Linear(layer_size, self.data_size),
-            nn.Sigmoid(),
-        )
-        
-    def forward(self, x, c):
-        
-        x = x.view(-1, self.data_size)
-        
-        x = self.encoder(x)
-        mu = self.mu(x)
-        logvar = self.logvar(x)
-        
-        std = torch.exp(0.5*logvar)
-        eps = torch.randn_like(std)
-        z = mu + eps*std
-        
-        c = self.conditional(c)
-        
-        z_c = torch.cat([z, c], dim=1)
-        
-        x = self.decoder(z_c)
-        
-        
-        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
-        
-        return x, mu, logvar
-
-    def generate(self, z, c):
-        c = self.conditional(c)
-        z_c = torch.cat([z, c], dim=1)
-        x = self.decoder(z_c)
-        
-        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
-        return x
-    
-    def encode(self, x):
-        x = x.view(-1, self.data_size)
-        x = self.encoder(x)
-        mu = self.mu(x)
-        logvar = self.logvar(x)
-        return mu, logvar
-    
     
 class VariationalAutoEncoder(nn.Module):
     def __init__(
         self,
         num_channels: int,
         img_side: int,
-        layer_size: int,
-        hidden_size: int,
-        
+        dropout: float = 0.2
     ):
+        
         super(VariationalAutoEncoder, self).__init__()
         
-        self.num_channels = num_channels
         self.img_side = img_side
-        self.data_size = num_channels * img_side * img_side
+        self.num_channels = num_channels
+        self.latent_dim = 4 * (img_side // 4) ** 2
+        # 4 channels, H/4, W/4 
+        
         
         self.encoder = nn.Sequential(
-            nn.Linear(self.data_size, layer_size),
+            nn.Conv2d(num_channels, 16, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(16),
             nn.ReLU(),
-            nn.BatchNorm1d(layer_size),
+            nn.Dropout(dropout),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(16, 4, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(4),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.MaxPool2d(kernel_size=2, stride=2)
         )
         
-        self.mu = nn.Linear(layer_size, hidden_size)
-        self.logvar = nn.Linear(layer_size, hidden_size)
+        self.mu_gen = nn.Linear(self.latent_dim, self.latent_dim)
+        self.logvar_gen = nn.Linear(self.latent_dim, self.latent_dim)
         
         self.decoder = nn.Sequential(
-            nn.Linear(hidden_size, layer_size),
+            nn.ConvTranspose2d(4, 16, 
+                               kernel_size=3, 
+                               stride=2, 
+                               padding=1, 
+                               output_padding=1),
             nn.ReLU(),
-            nn.BatchNorm1d(layer_size),
-            nn.Linear(layer_size, self.data_size),
-            nn.Sigmoid(),
+            nn.ConvTranspose2d(16, num_channels, 
+                               kernel_size=3, 
+                               stride=2, 
+                               padding=1, 
+                               output_padding=1),
+            nn.Sigmoid()
         )
-        
-    def forward(self, x):
-        
-        x = x.view(-1, self.data_size)
-        
+         
+    def forward(self, x, verbose=False):
         x = self.encoder(x)
-        mu = self.mu(x)
-        logvar = self.logvar(x)
+        x = x.view(-1, self.latent_dim)
         
-        std = torch.exp(0.5*logvar)
+        mu = self.mu_gen(x)
+        logvar = self.logvar_gen(x)
+        
+        std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
-        z = mu + eps*std
+        z = mu + eps * std
+        if verbose: print(z.shape)
+        
+        z = z.view(-1, 4, (self.img_side // 4), (self.img_side // 4)) # reshape to (B, C, H, W)
         
         x = self.decoder(z)
-        
-        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
         
         return x, mu, logvar
 
-    def generate(self, z):
-        x = self.decoder(z)
-        
-        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
-        return x
-    
     def encode(self, x):
-        
-        x = x.view(-1, self.data_size)
-        
         x = self.encoder(x)
-        mu = self.mu(x)
-        logvar = self.logvar(x)
+        x = x.view(-1, self.latent_dim)
+        mu = self.mu_gen(x)
+        logvar = self.logvar_gen(x)
         return mu, logvar
-    

@@ -1,6 +1,6 @@
 import torch
 from tqdm import tqdm
-from model import CondVariationalAutoEncoder, AutoEncoder, ConvAutoencoder
+from model import AutoEncoder, ConvAutoencoder, VariationalAutoEncoder
 from dataset import get_mnist, get_cifar
 import os
 from utils import get_device, KL_divergence
@@ -66,6 +66,79 @@ def train_ae(name, n_epochs, type, noise=False, dataset_name="mnist", save=True)
     plt.savefig(f"results/{name}/loss.png")
     plt.close()
     
+def train_vae(name, n_epochs, dataset_name):
+        
+        num_channels = 1 if dataset_name == "mnist" else 3
+        img_side = 28 if dataset_name == "mnist" else 32
+        
+        model = VariationalAutoEncoder(num_channels, img_side)
+        
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+        criterion = torch.nn.BCELoss()
+        
+        dataset = get_mnist(batch_size=64, shuffle=True) if dataset_name == "mnist" else get_cifar(batch_size=64, shuffle=True)
+        
+        device = get_device()
+        
+        model.to(device)
+        
+        losses = np.zeros(n_epochs)
+        
+        pbar = tqdm(range(n_epochs))
+        
+        target_lambda = 0.1
+        
+        for epoch in pbar:
+            for x, _ in dataset:
+                
+                x = x.to(device)
+                
+                optimizer.zero_grad()
+                output, mu, logvar = model(x)
+                loss = criterion(output, x) + (epoch / n_epochs) * target_lambda * KL_divergence(mu, logvar)
+                
+                loss.backward()
+                optimizer.step()
+                
+                losses[epoch] += loss.item()
+                
+            pbar.set_description(f"Loss: {losses[epoch]}")
+        
+        pbar.set_description("Computing class prototypes")
+        dataset = get_mnist(batch_size=0, loader=False) if dataset_name == "mnist" else get_cifar(batch_size=0, loader=False)
+        mus = torch.zeros(10, model.latent_dim).to(device)
+        logvars = torch.zeros(10, model.latent_dim).to(device)
+        counts = torch.zeros(10).to(device)
+        
+        model.eval()
+        with torch.inference_mode():
+            for x, y in tqdm(dataset, total=len(dataset)):
+                x = x.to(device).unsqueeze(0)
+                mu, logvar = model.encode(x)
+                mus[y] += mu.squeeze(0)
+                logvars[y] += logvar.squeeze(0)
+                counts[y] += 1
+            
+        mus /= counts.unsqueeze(1)
+        logvars /= counts.unsqueeze(1)
+        
+        params = {
+            "mus": mus,
+            "logvars": logvars
+        }
+    
+        os.makedirs(f"results/{name}", exist_ok=True)
+        
+        torch.save(model.state_dict(), f"results/{name}/model.pth") 
+        torch.save(params, f"results/{name}/params.pth")
+        
+        print("Training complete")
+    
+        plt.plot(losses)
+        plt.title("Loss")
+        plt.savefig(f"results/{name}/loss.png")
+        plt.close()    
+
 if __name__ == '__main__':
     
     # python3 train.py -m ae -n 30 -na ae1 -no -d cifar
@@ -92,7 +165,11 @@ if __name__ == '__main__':
         )
 
     else:
-        print("Not implemented")
+        train_vae(
+            name=args.name,
+            n_epochs=args.n_epochs,
+            dataset_name=args.dataset
+        )
         
         
     print("Done")
