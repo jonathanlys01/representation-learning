@@ -156,3 +156,8 @@ class VariationalAutoEncoder(nn.Module):
         mu = self.mu_gen(x)
         logvar = self.logvar_gen(x)
         return mu, logvar
+    
+    def decode(self, z):
+        z = z.view(-1, 4, (self.img_side // 4), (self.img_side // 4))
+        x = self.decoder(z)
+        return x

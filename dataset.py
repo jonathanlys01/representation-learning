@@ -45,7 +45,8 @@ def get_cifar(batch_size=32, shuffle=True, loader=True):
     return dataloader
 
 classes_cifar = ("airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
-    
+classes_mnist = tuple(str(i) for i in range(10))
+
 if __name__ == '__main__':
     dataset = get_cifar(loader=False)
     print(len(dataset))
