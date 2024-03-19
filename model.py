@@ -45,27 +45,47 @@ class AutoEncoder(nn.Module):
     
     
 class ConvAutoencoder(nn.Module):
-    def __init__(self, num_channels=1):
+    def __init__(self, num_channels=1, dropout=0.2):
         super(ConvAutoencoder, self).__init__()
 
-        self.conv1 = nn.Conv2d(num_channels, 16, 3, padding=1)  
-        self.conv2 = nn.Conv2d(16, 4, 3, padding=1)
+        # dropout can be applied to all layers
+        self.dropout = nn.Dropout(dropout)
+        
+        # pooling for the first ones (downsampling)
         self.pool = nn.MaxPool2d(2, 2)
+        
+        self.conv1 = nn.Conv2d(num_channels, 16, 3, padding=1)  
+        self.bn1 = nn.BatchNorm2d(16)
+        
+        self.conv2 = nn.Conv2d(16, 4, 3, padding=1)
+        self.bn2 = nn.BatchNorm2d(4)
+        
 
-        self.t_conv1 = nn.ConvTranspose2d(4, 16, 2, stride=2) 
-        self.t_conv2 = nn.ConvTranspose2d(16, num_channels, 2, stride=2)
+        self.t_conv1 = nn.ConvTranspose2d(4, 16, 5, dilation=2) 
+        self.t_bn1 = nn.BatchNorm2d(16)
+        self.t_conv2 = nn.ConvTranspose2d(16, 16, 5, dilation=2)
+        self.t_bn2 = nn.BatchNorm2d(16)
+        self.t_conv3 = nn.ConvTranspose2d(16, num_channels, 5, dilation=2)
         
 
     def forward(self, x, verbose=False):    
 
         x = F.relu(self.conv1(x))
         x = self.pool(x)
+        x = self.bn1(x)
+        x = self.dropout(x)
+        
         x = F.relu(self.conv2(x))
         x = self.pool(x)
-        if verbose: print(x.shape)
+        x = self.bn2(x)
+        x = self.dropout(x)
+        
         x = F.relu(self.t_conv1(x))
-        x = F.sigmoid(self.t_conv2(x))
-        if verbose: print(x.shape)
+        x = self.t_bn1(x)
+        x = F.relu(self.t_conv2(x))
+        x = self.t_bn2(x)
+        x = F.sigmoid(self.t_conv3(x))
+        
                 
         return x
 

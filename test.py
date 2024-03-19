@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from viz import visualize
 
-def test_auto_encoder(name, type, dataset_name="mnist", noise=False):
+def test_auto_encoder(name, type, dataset_name="mnist", noise=False, num_samples=5):
         
         num_channels = 1 if dataset_name == "mnist" else 3
         img_side = 28 if dataset_name == "mnist" else 32
@@ -19,16 +19,18 @@ def test_auto_encoder(name, type, dataset_name="mnist", noise=False):
         elif type == "conv":
             model = ConvAutoencoder(num_channels)
         
-        model.load_state_dict(torch.load(f"results/{name}/model.pth"))
+        model.load_state_dict(torch.load(f"results/{name}/model.pth", map_location=torch.device('cpu')))
         
         device = get_device()
         model.to(device)
         
         dataset = get_mnist(batch_size=64, loader=False) if dataset_name == "mnist" else get_cifar(batch_size=64, loader=False)
         
-        for i in range(5):
+        for i in range(num_samples):
             
-                x, _ = dataset[i]
+                idx = random.randint(0, len(dataset))
+            
+                x, _ = dataset[idx]
                 
                 x = x.to(device)
                 
@@ -36,8 +38,6 @@ def test_auto_encoder(name, type, dataset_name="mnist", noise=False):
                     x += 0.1 * x.std() * torch.randn_like(x).to(device)
                 
                 output = model(x).squeeze(0)
-
-                
                 
                 plt.subplot(1, 2, 1)
                 plt.imshow(x.permute(1, 2, 0).cpu().numpy())
@@ -66,6 +66,7 @@ if __name__ == '__main__':
     parser.add_argument("--name", "-n", type=str, default="ae", help="Name of the model to test")
     parser.add_argument("--model", "-m", type=str, default="ae", help="Type of model to test", choices=["ae", "conv", "vae"])
     parser.add_argument("--dataset", "-d", type=str, default="mnist", help="Dataset to use", choices=["mnist", "cifar"])
+    parser.add_argument("--num_samples", "-ns", type=int, default=5, help="Number of samples to visualize")
     
     args = parser.parse_args()
     
@@ -74,7 +75,8 @@ if __name__ == '__main__':
             name=args.name,
             type=args.model,
             dataset_name=args.dataset,
-            noise="noisy" in args.name
+            noise="noisy" in args.name,
+            num_samples=args.num_samples    
         )
     elif args.model == "vae":
         raise NotImplementedError("VAE not implemented yet")
