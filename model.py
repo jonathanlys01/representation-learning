@@ -7,26 +7,41 @@ class AutoEncoder(nn.Module):
     
     def __init__(
         self,
-        data_size: int,
+        num_channels: int,
+        img_side: int,
         hidden_size: int,
     ):
         super(AutoEncoder, self).__init__()
         
-        self.encoder = nn.Linear(data_size, hidden_size)
-        self.decoder = nn.Linear(hidden_size, data_size)
+        self.num_channels = num_channels
+        self.img_side = img_side
+        self.data_size = num_channels * img_side * img_side
+        
+        self.encoder = nn.Linear(self.data_size, hidden_size)
+        self.decoder = nn.Linear(hidden_size, self.data_size)
         
     def forward(self, x):
+        # X is (B, C, H, W)
+        
+        x = x.view(-1, self.data_size)
+        
         x = self.encoder(x)
         x = F.relu(x)
         x = self.decoder(x)
         x = F.sigmoid(x)
+        
+        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
         return x
     
     def encode(self, x):
+        x = x.view(-1, self.data_size)
         return self.encoder(x)
     
     def decode(self, x):
-        return self.decoder(x)
+        x = self.decoder(x)
+        x = F.sigmoid(x)
+        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
+        return x
     
     
 class ConvAutoencoder(nn.Module):
@@ -39,8 +54,6 @@ class ConvAutoencoder(nn.Module):
 
         self.t_conv1 = nn.ConvTranspose2d(4, 16, 2, stride=2) 
         self.t_conv2 = nn.ConvTranspose2d(16, num_channels, 2, stride=2)
-        
-        
         
 
     def forward(self, x, verbose=False):    
@@ -60,16 +73,23 @@ class CondVariationalAutoEncoder(nn.Module):
     def __init__(
         self,
         num_classes: int,
-        data_size: int,
+        
+        num_channels: int,
+        img_side: int,
+        
         layer_size: int,
         hidden_size: int,
         
     ):
         super(CondVariationalAutoEncoder, self).__init__()
         
+        self.num_channels = num_channels
+        self.img_side = img_side
+        self.data_size = num_channels * img_side * img_side
+        
         
         self.encoder = nn.Sequential(
-            nn.Linear(data_size, layer_size),
+            nn.Linear(self.data_size, layer_size),
             nn.ReLU(),
             nn.BatchNorm1d(layer_size),
         )
@@ -83,11 +103,13 @@ class CondVariationalAutoEncoder(nn.Module):
             nn.Linear(2*hidden_size, layer_size),
             nn.ReLU(),
             nn.BatchNorm1d(layer_size),
-            nn.Linear(layer_size, data_size),
+            nn.Linear(layer_size, self.data_size),
             nn.Sigmoid(),
         )
         
     def forward(self, x, c):
+        
+        x = x.view(-1, self.data_size)
         
         x = self.encoder(x)
         mu = self.mu(x)
@@ -103,15 +125,21 @@ class CondVariationalAutoEncoder(nn.Module):
         
         x = self.decoder(z_c)
         
+        
+        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
+        
         return x, mu, logvar
 
     def generate(self, z, c):
         c = self.conditional(c)
         z_c = torch.cat([z, c], dim=1)
         x = self.decoder(z_c)
+        
+        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
         return x
     
     def encode(self, x):
+        x = x.view(-1, self.data_size)
         x = self.encoder(x)
         mu = self.mu(x)
         logvar = self.logvar(x)
@@ -121,16 +149,20 @@ class CondVariationalAutoEncoder(nn.Module):
 class VariationalAutoEncoder(nn.Module):
     def __init__(
         self,
-        data_size: int,
+        num_channels: int,
+        img_side: int,
         layer_size: int,
         hidden_size: int,
         
     ):
         super(VariationalAutoEncoder, self).__init__()
         
+        self.num_channels = num_channels
+        self.img_side = img_side
+        self.data_size = num_channels * img_side * img_side
         
         self.encoder = nn.Sequential(
-            nn.Linear(data_size, layer_size),
+            nn.Linear(self.data_size, layer_size),
             nn.ReLU(),
             nn.BatchNorm1d(layer_size),
         )
@@ -142,11 +174,13 @@ class VariationalAutoEncoder(nn.Module):
             nn.Linear(hidden_size, layer_size),
             nn.ReLU(),
             nn.BatchNorm1d(layer_size),
-            nn.Linear(layer_size, data_size),
+            nn.Linear(layer_size, self.data_size),
             nn.Sigmoid(),
         )
         
     def forward(self, x):
+        
+        x = x.view(-1, self.data_size)
         
         x = self.encoder(x)
         mu = self.mu(x)
@@ -158,13 +192,20 @@ class VariationalAutoEncoder(nn.Module):
         
         x = self.decoder(z)
         
+        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
+        
         return x, mu, logvar
 
     def generate(self, z):
         x = self.decoder(z)
+        
+        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
         return x
     
     def encode(self, x):
+        
+        x = x.view(-1, self.data_size)
+        
         x = self.encoder(x)
         mu = self.mu(x)
         logvar = self.logvar(x)
