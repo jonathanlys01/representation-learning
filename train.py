@@ -68,7 +68,7 @@ def train_ae(name, n_epochs, type, noise=False, dataset_name="mnist", save=True)
     
 if __name__ == '__main__':
     
-    # python3 train.py -m ae -n 30 -na ae1 -no 
+    # python3 train.py -m ae -n 30 -na ae1 -no -d cifar
     # trains an autoencoder for 30 epochs, with noise, and saves the model in results/ae1
     
     parser = argparse.ArgumentParser()
