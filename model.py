@@ -90,25 +90,27 @@ class VariationalAutoEncoder(nn.Module):
         self,
         num_channels: int,
         img_side: int,
-        dropout: float = 0.2
+        latent_channels: int = 4,
+        dropout: float = 0.1
     ):
         
         super(VariationalAutoEncoder, self).__init__()
         
         self.img_side = img_side
         self.num_channels = num_channels
-        self.latent_dim = 4 * (img_side // 4) ** 2
-        # 4 channels, H/4, W/4 
+        self.latent_channels = latent_channels
+        self.latent_dim = latent_channels * (img_side // 4) * (img_side // 4)
+        # C_l, H/4, W/4 
         
         
         self.encoder = nn.Sequential(
-            nn.Conv2d(num_channels, 16, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(num_channels, 32, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(16, 4, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(4),
+            nn.Conv2d(32, self.latent_channels, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(self.latent_channels),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.MaxPool2d(kernel_size=2, stride=2)
@@ -118,17 +120,21 @@ class VariationalAutoEncoder(nn.Module):
         self.logvar_gen = nn.Linear(self.latent_dim, self.latent_dim)
         
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(4, 16, 
+            nn.ConvTranspose2d(self.latent_channels, 32,
                                kernel_size=3, 
                                stride=2, 
                                padding=1, 
                                output_padding=1),
             nn.ReLU(),
-            nn.ConvTranspose2d(16, num_channels, 
+            nn.ConvTranspose2d(32, 16, 
                                kernel_size=3, 
                                stride=2, 
                                padding=1, 
                                output_padding=1),
+            nn.ReLU(),
+            nn.Conv2d(16, self.num_channels,
+                      kernel_size=1,
+                      padding="same"),
             nn.Sigmoid()
         )
          

@@ -108,19 +108,22 @@ def train_vae(name, n_epochs, dataset_name):
         dataset = get_mnist(batch_size=0, loader=False) if dataset_name == "mnist" else get_cifar(batch_size=0, loader=False)
         mus = torch.zeros(10, model.latent_dim).to(device)
         logvars = torch.zeros(10, model.latent_dim).to(device)
-        counts = torch.zeros(10).to(device)
+        max_mse = torch.ones(10) * float("-inf")
+        max_mse = max_mse.to(device)
         
         model.eval()
+        # compute class prototypes (best reconstruction for each class)
         with torch.inference_mode():
             for x, y in tqdm(dataset, total=len(dataset)):
                 x = x.to(device).unsqueeze(0)
                 mu, logvar = model.encode(x)
-                mus[y] += mu.squeeze(0)
-                logvars[y] += logvar.squeeze(0)
-                counts[y] += 1
-            
-        mus /= counts.unsqueeze(1)
-        logvars /= counts.unsqueeze(1)
+                z = mu + torch.exp(0.5 * logvar) * torch.randn_like(mu)
+                x_hat = model.decode(z)
+                mse = torch.mean((x - x_hat) ** 2, dim=(1, 2, 3))
+                if mse > max_mse[y]:
+                    max_mse[y] = mse
+                    mus[y] = mu
+                    logvars[y] = logvar
         
         params = {
             "mus": mus,
