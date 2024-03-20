@@ -86,7 +86,7 @@ def train_vae(name, n_epochs, dataset_name):
         
         pbar = tqdm(range(n_epochs))
         
-        target_lambda = 0.1
+        target_lambda = 0.01
         
         for epoch in pbar:
             for x, _ in dataset:
