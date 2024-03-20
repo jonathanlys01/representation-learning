@@ -75,11 +75,9 @@ def test_vae(name, dataset_name):
         for i in range(10): # num classes
             mu = mus[i].unsqueeze(0)
             logvar = logvars[i].unsqueeze(0)
-            
             std = torch.exp(0.5 * logvar)
-            eps = torch.randn_like(std)
             
-            z = mu + eps * std
+            z = mu + std * torch.randn_like(mu)
         
             output = model.decode(z).squeeze(0)
             

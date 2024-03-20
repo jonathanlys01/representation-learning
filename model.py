@@ -91,7 +91,7 @@ class VariationalAutoEncoder(nn.Module):
         num_channels: int,
         img_side: int,
         latent_channels: int = 4,
-        dropout: float = 0.1
+        dropout: float = 0.5
     ):
         
         super(VariationalAutoEncoder, self).__init__()
@@ -137,6 +137,8 @@ class VariationalAutoEncoder(nn.Module):
                       padding="same"),
             nn.Sigmoid()
         )
+        
+        print("Latent dim:", self.latent_dim)
          
     def forward(self, x, verbose=False):
         x = self.encoder(x)

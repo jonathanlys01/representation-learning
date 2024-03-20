@@ -73,7 +73,7 @@ def train_vae(name, n_epochs, dataset_name):
         
         model = VariationalAutoEncoder(num_channels, img_side)
         
-        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
         criterion = torch.nn.BCELoss()
         
         dataset = get_mnist(batch_size=64, shuffle=True) if dataset_name == "mnist" else get_cifar(batch_size=64, shuffle=True)
@@ -86,7 +86,7 @@ def train_vae(name, n_epochs, dataset_name):
         
         pbar = tqdm(range(n_epochs))
         
-        target_lambda = 0.01
+        target_lambda = 0
         
         for epoch in pbar:
             for x, _ in dataset:
@@ -95,7 +95,7 @@ def train_vae(name, n_epochs, dataset_name):
                 
                 optimizer.zero_grad()
                 output, mu, logvar = model(x)
-                loss = criterion(output, x) + (epoch / n_epochs) * target_lambda * KL_divergence(mu, logvar)
+                loss = criterion(output, x) #+ target_lambda * KL_divergence(mu, logvar)
                 
                 loss.backward()
                 optimizer.step()
@@ -108,8 +108,8 @@ def train_vae(name, n_epochs, dataset_name):
         dataset = get_mnist(batch_size=0, loader=False) if dataset_name == "mnist" else get_cifar(batch_size=0, loader=False)
         mus = torch.zeros(10, model.latent_dim).to(device)
         logvars = torch.zeros(10, model.latent_dim).to(device)
-        max_mse = torch.ones(10) * float("-inf")
-        max_mse = max_mse.to(device)
+        min_mse = torch.ones(10).to(device) * float("inf")
+        min_mse = min_mse.to(device)
         
         model.eval()
         # compute class prototypes (best reconstruction for each class)
@@ -119,9 +119,9 @@ def train_vae(name, n_epochs, dataset_name):
                 mu, logvar = model.encode(x)
                 z = mu + torch.exp(0.5 * logvar) * torch.randn_like(mu)
                 x_hat = model.decode(z)
-                mse = torch.mean((x - x_hat) ** 2, dim=(1, 2, 3))
-                if mse > max_mse[y]:
-                    max_mse[y] = mse
+                mse = torch.mean((x.flatten() - x_hat.flatten()) ** 2)
+                if mse < min_mse[y]:
+                    min_mse[y] = mse
                     mus[y] = mu
                     logvars[y] = logvar
         
