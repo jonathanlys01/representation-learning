@@ -84,13 +84,59 @@ class ConvAutoencoder(nn.Module):
         x = self.decoder(x)
                 
         return x
+
+
+class ConvBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding="same", dropout=0.5):
+        super(ConvBlock, self).__init__()
+        
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+        self.dropout = nn.Dropout(dropout)
+        
+    def forward(self, x):
+        x = self.conv1(x)
+        x = F.leaky_relu(self.bn1(x))
+        x = self.dropout(x)
+        
+        x = self.conv2(x)
+        x = F.leaky_relu(self.bn2(x))
+        x = self.dropout(x)
+        
+        x = self.pool(x)
     
+        return x
+    
+class ConvTBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, strides=(1,1), padding=1):
+        super(ConvTBlock, self).__init__()
+        self.convt1 = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride=strides[0], padding=1) # always same padding
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        
+        self.convt2 = nn.ConvTranspose2d(out_channels, out_channels, kernel_size=kernel_size, stride=strides[1], padding=padding)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        
+    def forward(self, x):
+        x = self.convt1(x)
+        x = F.leaky_relu(self.bn1(x))
+        
+        x = self.convt2(x)
+        x = F.leaky_relu(self.bn2(x))
+        
+        return x
+        
 class VariationalAutoEncoder(nn.Module):
     def __init__(
         self,
         num_channels: int,
         img_side: int,
-        latent_channels: int = 4,
+        latent_dim: int,
         dropout: float = 0.5
     ):
         
@@ -98,51 +144,49 @@ class VariationalAutoEncoder(nn.Module):
         
         self.img_side = img_side
         self.num_channels = num_channels
-        self.latent_channels = latent_channels
-        self.latent_dim = latent_channels * (img_side // 4) * (img_side // 4)
-        # C_l, H/4, W/4 
+        self.latent_dim = latent_dim
         
         
         self.encoder = nn.Sequential(
-            nn.Conv2d(num_channels, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(32, self.latent_channels, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(self.latent_channels),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.MaxPool2d(kernel_size=2, stride=2)
+            ConvBlock(num_channels, 64, dropout=dropout),
+            ConvBlock(64, 128, dropout=dropout),
+            ConvBlock(128, 256, dropout=dropout),
+            nn.Flatten(),
+            nn.Linear(256 * (img_side // 8) * (img_side // 8), self.latent_dim),
+            nn.LeakyReLU()
         )
         
         self.mu_gen = nn.Linear(self.latent_dim, self.latent_dim)
         self.logvar_gen = nn.Linear(self.latent_dim, self.latent_dim)
         
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(self.latent_channels, 32,
-                               kernel_size=3, 
-                               stride=2, 
-                               padding=1, 
-                               output_padding=1),
-            nn.ReLU(),
-            nn.ConvTranspose2d(32, 16, 
-                               kernel_size=3, 
-                               stride=2, 
-                               padding=1, 
-                               output_padding=1),
-            nn.ReLU(),
-            nn.Conv2d(16, self.num_channels,
-                      kernel_size=1,
-                      padding="same"),
+            nn.Linear(self.latent_dim, self.latent_dim*10),
+            nn.LeakyReLU(),
+            nn.Linear(self.latent_dim*10, 256 * (img_side // 8) * (img_side // 8)),
+            nn.LeakyReLU(),
+            nn.Unflatten(1, (256, img_side // 8, img_side // 8)),
+            
+            ConvTBlock(256, 256, strides =(1,1)),
+            ConvTBlock(256, 128, strides =(1,2), padding=0),
+            nn.AdaptiveMaxPool2d((img_side//4, img_side//4)),
+            
+            ConvTBlock(128, 128, strides =(1,1)),
+            ConvTBlock(128, 64, strides =(1,2), padding=0),
+            nn.AdaptiveMaxPool2d((img_side//2, img_side//2)),
+
+            ConvTBlock(64, 64, strides =(1,1)),
+            ConvTBlock(64, 32, strides =(1,2), padding=0),
+            nn.AdaptiveMaxPool2d((img_side, img_side)),
+            
+            nn.Conv2d(32, num_channels, kernel_size=1, stride=1, padding=0), # adjust to num_channels
+
             nn.Sigmoid()
         )
         
         print("Latent dim:", self.latent_dim)
-         
-    def forward(self, x, verbose=False):
+
+    def forward(self, x):
         x = self.encoder(x)
-        x = x.view(-1, self.latent_dim)
         
         mu = self.mu_gen(x)
         logvar = self.logvar_gen(x)
@@ -150,22 +194,29 @@ class VariationalAutoEncoder(nn.Module):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         z = mu + eps * std
-        if verbose: print(z.shape)
-        
-        z = z.view(-1, 4, (self.img_side // 4), (self.img_side // 4)) # reshape to (B, C, H, W)
-        
+            
         x = self.decoder(z)
+    
         
         return x, mu, logvar
 
     def encode(self, x):
         x = self.encoder(x)
-        x = x.view(-1, self.latent_dim)
         mu = self.mu_gen(x)
         logvar = self.logvar_gen(x)
         return mu, logvar
     
     def decode(self, z):
-        z = z.view(-1, 4, (self.img_side // 4), (self.img_side // 4))
         x = self.decoder(z)
         return x
+    
+if __name__ == '__main__':
+    model = VariationalAutoEncoder(3, 32, 100)
+    x = torch.randn(5, 3, 32, 32)
+    print(x.shape)
+    
+    output, mu, logvar = model(x)
+    
+    print(output.shape)
+    
+    print(output.max(), output.min())

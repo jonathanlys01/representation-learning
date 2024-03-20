@@ -6,13 +6,15 @@ import matplotlib.pyplot as plt
 import os 
 import numpy as np
 
+import torchvision.transforms as T
+
 # MNIST dataset
 
 def get_mnist(batch_size=32, shuffle=True, loader=True):
     dataset =  torchvision.datasets.MNIST(
         root='./data',
         train=True,
-        transform=torchvision.transforms.ToTensor(),
+        transform=T.ToTensor(),
         download=True
     )
     if not loader:
@@ -26,11 +28,25 @@ def get_mnist(batch_size=32, shuffle=True, loader=True):
     )
     return dataloader
 
-def get_cifar(batch_size=32, shuffle=True, loader=True):
+cifar_train_transform = T.Compose([
+    T.Resize((32, 32)), 
+    T.RandomHorizontalFlip(),
+    T.RandomRotation(10),
+    T.RandomAffine(0, shear=10, scale=(0.8,1.2)),
+    T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+    T.ToTensor(),
+])
+
+cifar_eval_transform = T.Compose([
+    T.Resize((32, 32)), 
+    T.ToTensor(),
+])
+
+def get_cifar(batch_size=32, shuffle=True, loader=True, type="train"):
     dataset =  torchvision.datasets.CIFAR10(
         root='./data',
         train=True,
-        transform=torchvision.transforms.ToTensor(),
+        transform=cifar_train_transform if type == "train" else cifar_eval_transform,
         download=True
     )
     if not loader:

@@ -71,12 +71,19 @@ def train_vae(name, n_epochs, dataset_name):
         num_channels = 1 if dataset_name == "mnist" else 3
         img_side = 28 if dataset_name == "mnist" else 32
         
-        model = VariationalAutoEncoder(num_channels, img_side)
+        model = VariationalAutoEncoder(
+            num_channels=num_channels,
+            img_side=img_side,
+            latent_dim=100
+        )
         
-        optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
         criterion = torch.nn.BCELoss()
         
-        dataset = get_mnist(batch_size=64, shuffle=True) if dataset_name == "mnist" else get_cifar(batch_size=64, shuffle=True)
+        if dataset_name == "mnist":
+            dataset = get_mnist(batch_size=64, shuffle=True) 
+        else:
+            dataset = get_cifar(batch_size=64, shuffle=True, type="train")
         
         device = get_device()
         
@@ -86,7 +93,7 @@ def train_vae(name, n_epochs, dataset_name):
         
         pbar = tqdm(range(n_epochs))
         
-        target_lambda = 0
+        target_lambda = 1e-2
         
         for epoch in pbar:
             for x, _ in dataset:
@@ -95,7 +102,14 @@ def train_vae(name, n_epochs, dataset_name):
                 
                 optimizer.zero_grad()
                 output, mu, logvar = model(x)
-                loss = criterion(output, x) #+ target_lambda * KL_divergence(mu, logvar)
+                
+                print(torch.max(output), torch.max(x))
+                print(torch.min(output), torch.min(x))
+                
+                if epoch < n_epochs // 3:
+                    loss = criterion(output, x) + (epoch / n_epochs) * target_lambda * KL_divergence(mu, logvar)
+                else:
+                    loss = criterion(output, x) + target_lambda * KL_divergence(mu, logvar)
                 
                 loss.backward()
                 optimizer.step()
@@ -105,7 +119,7 @@ def train_vae(name, n_epochs, dataset_name):
             pbar.set_description(f"Loss: {losses[epoch]}")
         
         pbar.set_description("Computing class prototypes")
-        dataset = get_mnist(batch_size=0, loader=False) if dataset_name == "mnist" else get_cifar(batch_size=0, loader=False)
+        dataset = get_mnist(batch_size=0, loader=False) if dataset_name == "mnist" else get_cifar(batch_size=0, loader=False, type="train")
         mus = torch.zeros(10, model.latent_dim).to(device)
         logvars = torch.zeros(10, model.latent_dim).to(device)
         min_mse = torch.ones(10).to(device) * float("inf")
