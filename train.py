@@ -102,9 +102,7 @@ def train_vae(name, n_epochs, dataset_name):
                 
                 optimizer.zero_grad()
                 output, mu, logvar = model(x)
-                
-                print(torch.max(output), torch.max(x))
-                print(torch.min(output), torch.min(x))
+
                 
                 if epoch < n_epochs // 3:
                     loss = criterion(output, x) + (epoch / n_epochs) * target_lambda * KL_divergence(mu, logvar)
