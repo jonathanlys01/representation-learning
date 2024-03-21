@@ -137,7 +137,7 @@ class VariationalAutoEncoder(nn.Module):
         num_channels: int,
         img_side: int,
         latent_dim: int,
-        dropout: float = 0.5
+        dropout: float = 0.2
     ):
         
         super(VariationalAutoEncoder, self).__init__()
