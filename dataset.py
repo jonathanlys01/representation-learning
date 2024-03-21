@@ -33,7 +33,6 @@ cifar_train_transform = T.Compose([
     T.RandomHorizontalFlip(),
     T.RandomRotation(10),
     T.RandomAffine(0, shear=10, scale=(0.8,1.2)),
-    T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
     T.ToTensor(),
 ])
 

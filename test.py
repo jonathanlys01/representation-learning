@@ -49,13 +49,13 @@ def test_auto_encoder(name, type, dataset_name="mnist", noise=False, num_samples
                 plt.savefig(f"results/{name}/img_{i}.png")
                 plt.close()
 
-def test_vae(name, dataset_name):
+def test_vae(name, dataset_name, num_samples=5):
     num_channels = 1 if dataset_name == "mnist" else 3
     img_side = 28 if dataset_name == "mnist" else 32
     
     classes = classes_mnist if dataset_name == "mnist" else classes_cifar
     
-    model = VariationalAutoEncoder(num_channels, img_side)
+    model = VariationalAutoEncoder(num_channels, img_side, 100)
     
     model.load_state_dict(torch.load(f"results/{name}/model.pth", map_location=torch.device('cpu')))
     model.eval()
@@ -85,7 +85,15 @@ def test_vae(name, dataset_name):
             plt.title(f"Perturbed prototype for class: {classes[i]}")
             plt.savefig(f"results/{name}/prototype_{i}.png")
             plt.close()
-        
+    
+    with torch.inference_mode():
+        z = torch.randn(num_samples, 100).to(device)
+        output = model.decode(z)
+        for i in range(len(output)):
+            plt.imshow(output[i].permute(1, 2, 0).detach().cpu().numpy())
+            plt.title(f"Generated sample {i}")
+            plt.savefig(f"results/{name}/generated_{i}.png")
+            plt.close()
     
 if __name__ == '__main__':
     
@@ -120,7 +128,8 @@ if __name__ == '__main__':
     elif args.model == "vae":
         test_vae(
             name=args.name,
-            dataset_name=args.dataset
+            dataset_name=args.dataset,
+            num_samples=args.num_samples
         )
     print("Testing complete")
     
