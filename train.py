@@ -93,8 +93,6 @@ def train_vae(name, n_epochs, dataset_name, batch_size=64):
         
         pbar = tqdm(range(n_epochs))
         
-        target_lambda = 1e-6
-        
         for epoch in pbar:
             for x, _ in dataset:
                 
@@ -105,7 +103,7 @@ def train_vae(name, n_epochs, dataset_name, batch_size=64):
 
                 
                 
-                loss = criterion(output, x) + target_lambda * KL_divergence(mu, logvar)
+                loss = criterion(output, x) #+ KL_divergence(mu, logvar)
                 
                 loss.backward()
                 optimizer.step()
