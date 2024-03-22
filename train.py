@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import argparse
 
 
-def train_ae(name, n_epochs, type, noise=False, dataset_name="mnist", save=True):
+def train_ae(name, n_epochs, type, noise=False, dataset_name="mnist", save=True, batch_size=64):
     
     num_channels = 1 if dataset_name == "mnist" else 3
     img_side = 28 if dataset_name == "mnist" else 32
@@ -25,7 +25,7 @@ def train_ae(name, n_epochs, type, noise=False, dataset_name="mnist", save=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
     criterion = torch.nn.BCELoss()
     
-    dataset = get_mnist(batch_size=64, shuffle=True) if dataset_name == "mnist" else get_cifar(batch_size=64, shuffle=True)
+    dataset = get_mnist(batch_size=batch_size, shuffle=True) if dataset_name == "mnist" else get_cifar(batch_size=batch_size, shuffle=True)
     
     device = get_device()
     
@@ -66,7 +66,7 @@ def train_ae(name, n_epochs, type, noise=False, dataset_name="mnist", save=True)
     plt.savefig(f"results/{name}/loss.png")
     plt.close()
     
-def train_vae(name, n_epochs, dataset_name):
+def train_vae(name, n_epochs, dataset_name, batch_size=64):
         
         num_channels = 1 if dataset_name == "mnist" else 3
         img_side = 28 if dataset_name == "mnist" else 32
@@ -81,9 +81,9 @@ def train_vae(name, n_epochs, dataset_name):
         criterion = torch.nn.BCELoss()
         
         if dataset_name == "mnist":
-            dataset = get_mnist(batch_size=64, shuffle=True) 
+            dataset = get_mnist(batch_size=batch_size, shuffle=True) 
         else:
-            dataset = get_cifar(batch_size=64, shuffle=True, type="train")
+            dataset = get_cifar(batch_size=batch_size, shuffle=True, type="train")
         
         device = get_device()
         
@@ -165,6 +165,7 @@ if __name__ == '__main__':
     parser.add_argument("--name", "-na", type=str, help="Name of the model")
     parser.add_argument("--noise", "-no", action="store_true", help="Add noise to the input") # false by default
     parser.add_argument("--dataset", "-d", type=str, default="cifar", help="Dataset to use", choices=["mnist", "cifar"])
+    parser.add_argument("--batch_size", "-b", type=int, default=64, help="Batch size")
     
     args = parser.parse_args()
     
@@ -174,14 +175,16 @@ if __name__ == '__main__':
             n_epochs=args.n_epochs,
             type=args.model,
             noise=args.noise,
-            dataset_name=args.dataset
+            dataset_name=args.dataset,
+            batch_size=args.batch_size
         )
 
     else:
         train_vae(
             name=args.name,
             n_epochs=args.n_epochs,
-            dataset_name=args.dataset
+            dataset_name=args.dataset,
+            batch_size=args.batch_size
         )
         
         

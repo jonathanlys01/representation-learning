@@ -30,9 +30,15 @@ def get_mnist(batch_size=32, shuffle=True, loader=True):
 
 cifar_train_transform = T.Compose([
     T.Resize((32, 32)), 
-    T.RandomHorizontalFlip(),
-    T.RandomRotation(10),
-    T.RandomAffine(0, shear=10, scale=(0.8,1.2)),
+    T.RandomChoice([
+        torch.nn.Identity(),
+        T.RandomHorizontalFlip(p=1),
+        T.RandomVerticalFlip(p=1),
+        T.RandomRotation(5),
+        T.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+        T.RandomAffine(degrees=0, scale=(0.9, 1.1)),
+    ]),
+    T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
     T.ToTensor(),
 ])
 
