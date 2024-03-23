@@ -54,33 +54,47 @@ class AutoEncoder(nn.Module):
     
     
 class ConvAutoencoder(nn.Module):
-    def __init__(self, num_channels=1, dropout=0.2):
+    def __init__(self, num_channels=1, dropout=0.5):
         super(ConvAutoencoder, self).__init__()
 
         self.encoder = nn.Sequential(
-            nn.Conv2d(num_channels, 16, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(num_channels, 32, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(64),
+            nn.Dropout(dropout),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Conv2d(64, 32, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+        )
+        
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(32, 64, 
+                               kernel_size=3, 
+                               stride=2, 
+                               padding=1, 
+                               output_padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.ConvTranspose2d(64, 32, 
+                               kernel_size=3, 
+                               stride=2, 
+                               padding=1, 
+                               output_padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 16,
+                                kernel_size=3,
+                                stride=2,
+                                padding=1,
+                                output_padding=1),
             nn.BatchNorm2d(16),
             nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(16, 4, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(4),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.MaxPool2d(kernel_size=2, stride=2)
-        )
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(4, 16, 
-                               kernel_size=3, 
-                               stride=2, 
-                               padding=1, 
-                               output_padding=1),
-            nn.ReLU(),
-            nn.ConvTranspose2d(16, num_channels, 
-                               kernel_size=3, 
-                               stride=2, 
-                               padding=1, 
-                               output_padding=1),
+            nn.Conv2d(16, num_channels, kernel_size=1, stride=1, padding=0),
             nn.Sigmoid()
         )
             
@@ -95,6 +109,10 @@ class ConvAutoencoder(nn.Module):
         if verbose: print(x.shape)
         x = self.decoder(x)
                 
+        return x
+    
+    def encode(self, x):
+        x = self.encoder(x)
         return x
 
 
@@ -223,12 +241,12 @@ class VariationalAutoEncoder(nn.Module):
         return x
     
 if __name__ == '__main__':
-    model = VariationalAutoEncoder(3, 32, 100)
+    model = ConvAutoencoder(num_channels=3)
     x = torch.randn(5, 3, 32, 32)
     print(x.shape)
     
-    output, mu, logvar = model(x)
+    output = model(x)
     
     print(output.shape)
     
-    print(output.max(), output.min())
+    

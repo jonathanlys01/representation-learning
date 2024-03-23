@@ -37,6 +37,8 @@ if __name__ == "__main__":
     
     # python3 viz.py --name "vae_long" --type "vae" --dataset "cifar" -n 1000
     
+    # python3 viz.py --name "ae" --type "ae" --dataset "cifar" -n 1000
+    
     parser.add_argument("--name", type=str, required=True)
     parser.add_argument("--type", type=str, required=True)
     parser.add_argument("--dataset", type=str, default="cifar")
@@ -65,7 +67,7 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load(f"results/{args.name}/model.pth", map_location="cpu"))
     model.eval()
     
-    embeddings = torch.zeros(args.n_samples, model.latent_dim)
+    embeddings = torch.zeros(args.n_samples, 256)
     labels = np.zeros(args.n_samples)
     
     for i, idx in enumerate(tqdm(idx)):

@@ -30,9 +30,7 @@ def train_ae(name, n_epochs, type, noise=False, dataset_name="mnist", save=True,
         temp = next(iter(temp))
         print(model.get_shape(temp[0].unsqueeze(0)))
     
-    dataset = get_mnist(batch_size=batch_size, shuffle=True) if dataset_name == "mnist" else get_cifar(batch_size=batch_size, shuffle=True, type="train")
-    
-    
+    dataset = get_mnist(batch_size=batch_size, shuffle=True) if dataset_name == "mnist" else get_cifar(batch_size=batch_size, shuffle=True, type="test")
     
     device = get_device()
     

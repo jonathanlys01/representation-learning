@@ -16,7 +16,7 @@ def test_auto_encoder(name, type, dataset_name="mnist", noise=False, num_samples
         img_side = 28 if dataset_name == "mnist" else 32
         
         if type == "ae":
-            model = AutoEncoder(num_channels, img_side, 64)
+            model = AutoEncoder(num_channels, img_side, 100)
         elif type == "conv":
             model = ConvAutoencoder(num_channels)
         
@@ -24,8 +24,9 @@ def test_auto_encoder(name, type, dataset_name="mnist", noise=False, num_samples
         
         device = get_device()
         model.to(device)
+        model.eval()
         
-        dataset = get_mnist(batch_size=0, loader=False) if dataset_name == "mnist" else get_cifar(batch_size=0, loader=False)
+        dataset = get_mnist(batch_size=0, loader=False) if dataset_name == "mnist" else get_cifar(batch_size=0, loader=False, type="test")
         
         for i in range(num_samples):
             
