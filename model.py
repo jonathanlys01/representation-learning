@@ -23,7 +23,7 @@ class PCA(nn.Module):
         x = x.view(B, -1)
         x = torch.matmul(x, self.matrix)
         x = torch.matmul(x, self.matrix.t())
-        
+        x = F.sigmoid(x) 
         x = x.view(B, C, H, W)
 
         return x
