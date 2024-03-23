@@ -177,7 +177,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    if args.model in ["ae", "conv"]:
+    if args.model in ["ae", "conv", "pca"]:
         train_ae(
             name=args.name,
             n_epochs=args.n_epochs,
