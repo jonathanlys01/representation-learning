@@ -19,7 +19,8 @@ class PCA(nn.Module):
         )
         self.decoder = nn.Sequential(
             nn.Linear(hidden_size, input_size),
-            nn.Unflatten(1, (num_channels, img_side, img_side))
+            nn.Unflatten(1, (num_channels, img_side, img_side)),
+            nn.Sigmoid()
         )
         
     def forward(self, x):
