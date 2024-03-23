@@ -1,5 +1,5 @@
 from dataset import get_mnist, get_cifar, classes_cifar, classes_mnist
-from model import AutoEncoder, ConvAutoencoder, VariationalAutoEncoder
+from model import AutoEncoder, ConvAutoencoder, VariationalAutoEncoder, PCA
 import torch
 from utils import get_device
 import matplotlib.pyplot as plt
@@ -19,6 +19,8 @@ def test_auto_encoder(name, type, dataset_name="mnist", noise=False, num_samples
             model = AutoEncoder(num_channels, img_side, 100)
         elif type == "conv":
             model = ConvAutoencoder(num_channels)
+        elif type == "pca":
+            model = PCA(num_channels, img_side, 100)
         
         model.load_state_dict(torch.load(f"results/{name}/model.pth", map_location=torch.device('cpu')))
         
@@ -142,7 +144,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     
     parser.add_argument("--name", "-n", type=str, default="ae", help="Name of the model to test")
-    parser.add_argument("--model", "-m", type=str, default="ae", help="Type of model to test", choices=["ae", "conv", "vae"])
+    parser.add_argument("--model", "-m", type=str, default="ae", help="Type of model to test", choices=["ae", "conv", "vae", "pca"])    
     parser.add_argument("--dataset", "-d", type=str, default="cifar", help="Dataset to use", choices=["mnist", "cifar"])
     parser.add_argument("--num_samples", "-ns", type=int, default=5, help="Number of samples to visualize")
     parser.add_argument("--grid", "-g", action="store_true", help="Visualize the grid")
@@ -151,7 +153,7 @@ if __name__ == '__main__':
     
     print("DS:", args.dataset)
     
-    if args.model in ["ae", "conv"]:
+    if args.model in ["ae", "conv", "pca"]:
         test_auto_encoder(
             name=args.name,
             type=args.model,

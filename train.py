@@ -24,7 +24,8 @@ def train_ae(name, n_epochs, type, noise=False, dataset_name="mnist", save=True,
     elif type == "pca":
         model = PCA(num_channels, img_side, 100)
     
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+    lr = 1e-4 if type == "pca" else 1e-2
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = torch.nn.BCELoss()
     
     if type == "conv":
