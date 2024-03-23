@@ -1,6 +1,6 @@
 import torch
 from tqdm import tqdm
-from model import AutoEncoder, ConvAutoencoder, VariationalAutoEncoder
+from model import AutoEncoder, ConvAutoencoder, VariationalAutoEncoder, PCA
 from dataset import get_mnist, get_cifar
 import os
 from utils import get_device, KL_divergence
@@ -21,6 +21,8 @@ def train_ae(name, n_epochs, type, noise=False, dataset_name="mnist", save=True,
         model = AutoEncoder(num_channels, img_side, 100)
     elif type == "conv":
         model = ConvAutoencoder(num_channels)
+    elif type == "pca":
+        model = PCA(num_channels, img_side, 100)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
     criterion = torch.nn.BCELoss()
@@ -160,9 +162,12 @@ if __name__ == '__main__':
     # python3 train.py -m ae -n 30 -na ae1 -no -d cifar
     # trains an autoencoder for 30 epochs, with noise, and saves the model in results/ae1
     
+    
+    # python3 train.py --model pca --n_epochs 100 --name pca --dataset cifar --batch_size 512   
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", "-m", type=str, default="ae", help="Model to train", 
-                        choices=["ae", "vae", "conv"])
+                        choices=["ae", "vae", "conv", "pca"])
     
     parser.add_argument("--n_epochs", "-n", type=int, default=30, help="Number of epochs to train")
     parser.add_argument("--name", "-na", type=str, help="Name of the model")

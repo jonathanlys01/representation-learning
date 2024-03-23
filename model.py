@@ -2,6 +2,32 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class PCA(nn.Module):
+    """
+    A PCA is a simple autoencoder with a single linear layer in the encoder and decoder
+    No activation functions are used
+    """
+    def __init__(self,
+                 num_channels: int,
+                    img_side: int,
+                    hidden_size: int):
+        super(PCA, self).__init__()
+        input_size = num_channels * img_side * img_side
+        self.encoder = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(input_size, hidden_size)
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(hidden_size, input_size),
+            nn.Unflatten(1, (num_channels, img_side, img_side))
+        )
+        
+    def forward(self, x):
+        
+        x = self.encoder(x)
+        x = self.decoder(x)
+        
+        return x
 
 class AutoEncoder(nn.Module):
     

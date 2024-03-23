@@ -67,14 +67,22 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load(f"results/{args.name}/model.pth", map_location="cpu"))
     model.eval()
     
-    embeddings = torch.zeros(args.n_samples, 256)
+    if args.type == "vae" or args.type == "ae":
+
+        embeddings = torch.zeros(args.n_samples, 100)
+    else: # conv
+        embeddings = torch.zeros(args.n_samples, 512)
     labels = np.zeros(args.n_samples)
     
     for i, idx in enumerate(tqdm(idx)):
         img, label = dataset[idx]
         img = img.unsqueeze(0)
-        if args.type == "ae" or args.type == "conv":
+        if args.type == "ae":
             embeddings[i] = model.encode(img).squeeze()
+        elif args.type == "conv":
+            x = model.encoder(img)
+            x = x.view(x.size(0), -1)
+            embeddings[i] = x.squeeze()
         else:
             mu, _ = model.encode(img)
             embeddings[i] = mu.squeeze()
