@@ -25,7 +25,7 @@ def test_auto_encoder(name, type, dataset_name="mnist", noise=False, num_samples
         device = get_device()
         model.to(device)
         
-        dataset = get_mnist(batch_size=64, loader=False) if dataset_name == "mnist" else get_cifar(batch_size=64, loader=False)
+        dataset = get_mnist(batch_size=0, loader=False) if dataset_name == "mnist" else get_cifar(batch_size=0, loader=False)
         
         for i in range(num_samples):
             

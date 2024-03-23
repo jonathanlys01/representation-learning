@@ -17,8 +17,21 @@ class AutoEncoder(nn.Module):
         self.img_side = img_side
         self.data_size = num_channels * img_side * img_side
         
-        self.encoder = nn.Linear(self.data_size, hidden_size)
-        self.decoder = nn.Linear(hidden_size, self.data_size)
+        self.encoder = nn.Sequential(
+            nn.Linear(self.data_size, 2*hidden_size),
+            nn.BatchNorm1d(2*hidden_size),
+            nn.ReLU(),
+            nn.Linear(2*hidden_size, hidden_size),
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU()
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(hidden_size, 2*hidden_size),
+            nn.BatchNorm1d(2*hidden_size),
+            nn.ReLU(),
+            nn.Linear(2*hidden_size, self.data_size),
+            nn.Unflatten(1, (num_channels, img_side, img_side))
+        )
         
     def forward(self, x):
         # X is (B, C, H, W)
@@ -26,11 +39,8 @@ class AutoEncoder(nn.Module):
         x = x.view(-1, self.data_size)
         
         x = self.encoder(x)
-        x = F.relu(x)
         x = self.decoder(x)
         x = F.sigmoid(x)
-        
-        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
         return x
     
     def encode(self, x):
@@ -40,7 +50,6 @@ class AutoEncoder(nn.Module):
     def decode(self, x):
         x = self.decoder(x)
         x = F.sigmoid(x)
-        x = x.view(-1, self.num_channels, self.img_side, self.img_side)
         return x
     
     
@@ -75,7 +84,10 @@ class ConvAutoencoder(nn.Module):
             nn.Sigmoid()
         )
             
-        
+    def get_shape(self, x): 
+        x = self.encoder(x)
+        print(torch.prod(torch.tensor(x.shape)))
+        return x.shape
 
     def forward(self, x, verbose=False):    
 

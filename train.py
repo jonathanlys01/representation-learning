@@ -18,14 +18,21 @@ def train_ae(name, n_epochs, type, noise=False, dataset_name="mnist", save=True,
     
     
     if type == "ae":
-        model = AutoEncoder(num_channels, img_side, 64)
+        model = AutoEncoder(num_channels, img_side, 100)
     elif type == "conv":
         model = ConvAutoencoder(num_channels)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
     criterion = torch.nn.BCELoss()
     
-    dataset = get_mnist(batch_size=batch_size, shuffle=True) if dataset_name == "mnist" else get_cifar(batch_size=batch_size, shuffle=True)
+    if type == "conv":
+        temp = get_mnist(batch_size=0, loader=False) if dataset_name == "mnist" else get_cifar(batch_size=0, loader=False, type="train")
+        temp = next(iter(temp))
+        print(model.get_shape(temp[0].unsqueeze(0)))
+    
+    dataset = get_mnist(batch_size=batch_size, shuffle=True) if dataset_name == "mnist" else get_cifar(batch_size=batch_size, shuffle=True, type="train")
+    
+    
     
     device = get_device()
     
