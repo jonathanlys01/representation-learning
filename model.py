@@ -6,6 +6,8 @@ class PCA(nn.Module):
     """
     A PCA is a simple autoencoder with a single linear layer in the encoder and decoder
     No activation functions are used
+    
+    Note: in a PCA, the decoder is the same as the encoder
     """
     def __init__(self,
                  num_channels: int,
@@ -13,21 +15,17 @@ class PCA(nn.Module):
                     hidden_size: int):
         super(PCA, self).__init__()
         input_size = num_channels * img_side * img_side
-        self.encoder = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(input_size, hidden_size)
-        )
-        self.decoder = nn.Sequential(
-            nn.Linear(hidden_size, input_size),
-            nn.Unflatten(1, (num_channels, img_side, img_side)),
-            nn.Sigmoid()
-        )
+        
+        self.matrix = nn.Parameter(torch.randn(input_size, hidden_size))
         
     def forward(self, x):
+        B, C, H, W = x.shape
+        x = x.view(B, -1)
+        x = torch.matmul(x, self.matrix)
+        x = torch.matmul(x, self.matrix.t())
         
-        x = self.encoder(x)
-        x = self.decoder(x)
-        
+        x = x.view(B, C, H, W)
+
         return x
 
 class AutoEncoder(nn.Module):
